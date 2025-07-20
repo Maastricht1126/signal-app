@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>視覚信号練習アプリ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 1em;
+      background: #f9f9f9;
+      color: #333;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      position: relative;
+    }
+
+    h1 {
+      font-size: 1.5em;
+      text-align: center;
+      margin-bottom: 1em;
+    }
+
+    .panel {
+      margin: 1em 0;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.3em;
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 0.5em;
+      font-size: 1em;
+      box-sizing: border-box;
+      margin-bottom: 0.5em;
+    }
+
+    button {
+      padding: 0.5em 1em;
+      font-size: 1em;
+      margin-right: 0.5em;
+      margin-bottom: 0.5em;
+      border: none;
+      background: #444;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #light {
+      width: 100px;
+      height: 100px;
+      background-color: #ccc;
+      margin: 20px auto;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      transition: background-color 0.2s, box-shadow 0.2s;
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 1em;
+    }
+
+    #multiAnswerPanel input {
+      width: 100%;
+      margin-bottom: 0.5em;
+    }
+
+    strong {
+      display: inline-block;
+      margin-bottom: 0.3em;
+    }
+
+    #settingsPanel {
+      display: none;
+      position: fixed;
+      top: 45px;
+      right: 10px;
+      width: 300px;
+      max-width: 90vw;
+      background: #eee;
+      padding: 1em;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.2);
+      z-index: 999;
+      overflow-y: auto;
+      max-height: 80vh;
+    }
+
+    #toggleSettingsBtn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      padding: 0.5em 1em;
+      border-radius: 5px;
+      background-color: #444;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 1.2em;
+      }
+
+      button {
+        width: 100%;
+        margin-bottom: 0.5em;
+      }
+
+      #settingsPanel {
+        width: 90vw;
+        right: 5vw;
+        top: 45px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>視覚信号練習アプリ</h1>
+
+  <div id="light"></div>
+
+  <div class="panel">
+    <label>文字列（ひらがな/数字）</label>
+    <input type="text" id="inputText" value="あ1" />
+    <button onclick="playSignal()">再生</button>
+    <button onclick="generateRandom()">ランダム出題</button>
+    <button onclick="showAnswer()">解答表示</button>
+  </div>
+
+  <div class="panel">
+    <strong>複数問題の解答欄</strong>
+    <div id="multiAnswerPanel"></div>
+    <button onclick="checkMultiAnswers()">まとめて採点</button>
+  </div>
+
+  <button id="toggleSettingsBtn" onclick="toggleSettings()">設定</button>
+
+  <div id="settingsPanel" class="panel">
+    <label>出題数</label>
+    <input type="number" id="questionCount" value="3" min="1" max="10" />
+    <label>1問あたりの文字数</label>
+    <input type="number" id="lengthPerQuestion" value="1" min="1" max="10" />
+    <label>問題間隔（秒）</label>
+    <input type="number" id="intervalSec" value="5" min="0.1" step="0.1" />
+    <label>出題文字種別</label>
+    <select id="charTypeSelect">
+      <option value="all">すべて（数字＋ひらがな）</option>
+      <option value="numbers">数字のみ</option>
+      <option value="hiragana">ひらがなのみ</option>
+    </select>
+    <label>光色</label>
+    <select id="colorSelect">
+      <option value="#ffff00">黄</option>
+      <option value="#ff0000">赤</option>
+      <option value="#ffffff">白</option>
+      <option value="#00ff00">緑</option>
+    </select>
+
+    <hr />
+
+    <label>短符 (秒)</label>
+    <input type="number" id="dotTime" value="0.2" step="0.01" min="0.01" />
+    <label>長符 (秒)</label>
+    <input type="number" id="dashTime" value="0.6" step="0.01" min="0.01" />
+    <label>間隔 (秒)</label>
+    <input type="number" id="gapTime" value="0.2" step="0.01" min="0.01" />
+    <label>信号スピード倍率（例: 1 = 通常, 0.5 = 速く）</label>
+    <input type="number" id="speedMultiplier" value="1" step="0.1" min="0.1" />
+  </div>
+
+  <div class="panel">
+    <strong>正解：</strong><span id="answer"></span>
+  </div>
+
+  <div class="panel">
+    <strong>出題履歴：</strong>
+    <ul id="history"></ul>
+    <strong>正解数：</strong><span id="correctCount">0</span> / <span id="totalCount">0</span>
+    (<span id="accuracy">0</span>%)
+  </div>
+
+  <script>
+    function toggleSettings() {
+      const panel = document.getElementById('settingsPanel');
+      const btn = document.getElementById('toggleSettingsBtn');
+      if (panel.style.display === 'none' || panel.style.display === '') {
+        panel.style.display = 'block';
+        btn.textContent = '設定を閉じる';
+      } else {
+        panel.style.display = 'none';
+        btn.textContent = '設定';
+      }
+    }
+
+    const morseCode = {
+      あ: '--.--', い: '.‐', う: '..-', え: '-.‐-‐', お: '.-...',
+      か: '.-..', き: '-.-..', く: '...-', け: '‐.--', こ: '----',
+      さ: '-.-.-', し: '--.-.', す: '---.-', せ: '.---.', そ: '---.',
+      た: '-.', ち: '..-.', つ: '.--.', て: '.-.--', と: '..-..',
+      な: '.-.', に: '-.-.', ぬ: '....', ね: '--.-', の: '..--',
+      は: '-...', ひ: '--..-', ふ: '--..', へ: '.', ほ: '-..',
+      ま: '-..-', み: '..-.-', む: '-', め: '-...-', も: '-..-.',
+      や: '.--', ゆ: '-..--', よ: '--', ら: '...', り: '--.',
+      る: '-.--.', れ: '---', ろ: '.-.-', わ: '-.-', を: '.---',
+      ん: '.-.-.', ゑ: '.--..', ゐ: '.‐..‐', 濁点: '..', 半濁点: '..--.',
+      ー: '.--.-',
+      1: '.----', 2: '..---', 3: '...--', 4: '....-', 5: '.....',
+      6: '-....', 7: '--...', 8: '---..', 9: '----.', 0: '-----',
+    };
+
+    let correct = 0;
+    let total = 0;
+    let currentAnswer = '';
+    let currentQuestions = [];
+
+    function playSignal(text = null) {
+      if (text === null) text = document.getElementById('inputText').value;
+      const dotTime = parseFloat(document.getElementById('dotTime').value) * 1000;
+      const dashTime = parseFloat(document.getElementById('dashTime').value) * 1000;
+      const gap = parseFloat(document.getElementById('gapTime').value) * 1000;
+      const speed = parseFloat(document.getElementById('speedMultiplier').value);
+      const color = document.getElementById('colorSelect').value;
+      const light = document.getElementById('light');
+      currentAnswer = text;
+
+      let sequence = [];
+      for (let char of text) {
+        if (morseCode[char]) {
+          for (let symbol of morseCode[char]) {
+            if (symbol === '.') sequence.push([color, dotTime * speed]);
+            else if (symbol === '-') sequence.push([color, dashTime * speed]);
+            sequence.push(['#ccc', gap * speed]);
+          }
+          sequence.push(['#ccc', gap * 2 * speed]);
+        }
+      }
+
+      let t = 0;
+      for (let [c, duration] of sequence) {
+        setTimeout(() => {
+          light.style.backgroundColor = c;
+        }, t);
+        t += duration;
+      }
+    }
+
+    function generateRandom() {
+      const charType = document.getElementById('charTypeSelect').value;
+      let charsAll = Object.keys(morseCode);
+      let chars = [];
+
+      if (charType === 'numbers') {
+        chars = charsAll.filter(c => /^[0-9]$/.test(c));
+      } else if (charType === 'hiragana') {
+        chars = charsAll.filter(c => /^[\u3040-\u309F]$/.test(c));
+      } else {
+        chars = charsAll;
+      }
+
+      const count = parseInt(document.getElementById('questionCount').value);
+      const lengthPerQ = parseInt(document.getElementById('lengthPerQuestion').value);
+      const interval = parseFloat(document.getElementById('intervalSec').value) * 1000;
+      const answerPanel = document.getElementById('multiAnswerPanel');
+      answerPanel.innerHTML = '';
+      currentQuestions = [];
+
+      let i = 0;
+
+      function nextQuestion() {
+        if (i >= count) return;
+        let result = '';
+        for (let j = 0; j < lengthPerQ; j++) {
+          result += chars[Math.floor(Math.random() * chars.length)];
+        }
+
+        currentQuestions.push(result);
+        const inputId = `answerInput${i}`;
+        const entry = document.createElement('div');
+        entry.innerHTML = `<strong>Q${i + 1}:</strong>（信号再生中）<br><input type="text" id="${inputId}" placeholder="ここに解答">`;
+        answerPanel.appendChild(entry);
+
+        document.getElementById('answer').textContent = '';
+        currentAnswer = result;
+        playSignal(result);
+        i++;
+        total++;
+        document.getElementById('totalCount').textContent = total;
+
+        if (i < count) setTimeout(nextQuestion, interval);
+      }
+
+      nextQuestion();
+    }
+
+    function showAnswer() {
+      const text = currentAnswer;
+      let morse = '';
+      for (let char of text) {
+        morse += morseCode[char] ? morseCode[char] + ' ' : '? ';
+      }
+      document.getElementById('answer').textContent = `${text}（${morse.trim()}）`;
+    }
+
+    function checkMultiAnswers() {
+      const history = document.getElementById('history');
+      for (let i = 0; i < currentQuestions.length; i++) {
+        const expected = currentQuestions[i];
+        const userInput = document.getElementById(`answerInput${i}`).value.trim();
+
+        // モールス信号を取得
+        let morse = '';
+        for (let char of expected) {
+          morse += morseCode[char] ? morseCode[char] + ' ' : '? ';
+        }
+
+        const entry = document.createElement('li');
+        entry.textContent = `Q${i + 1}: ${expected}（${morse.trim()}） | A: ${userInput} | ${userInput === expected ? '⭕' : '❌'}`;
+        history.appendChild(entry);
+
+        if (userInput === expected) correct++;
+      }
+
+      while (history.children.length > 20) {
+        history.removeChild(history.firstChild);
+      }
+
+      document.getElementById('correctCount').textContent = correct;
+      document.getElementById('accuracy').textContent = ((correct / total) * 100).toFixed(1);
+    }
+  </script>
+</body>
+</html>
