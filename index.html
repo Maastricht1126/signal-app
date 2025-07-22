@@ -95,7 +95,7 @@
   <button id="openSettingsBtn">設定</button>
 
   <div id="flagContainer">
-    <img id="flagImage" src="" alt="手旗信号" />
+    <img id="flagImage" src="poses/20.png" alt="手旗信号" />
   </div>
 
   <div class="panel">
@@ -121,6 +121,8 @@
       <input type="number" id="lengthPerQuestion" value="1" min="1" max="10" />
       <label for="intervalSec">問題間隔（秒）</label>
       <input type="number" id="intervalSec" value="5" min="1" />
+      <label for="signalSpeedSec">手旗信号スピード（大きいほど速い）</label>
+      <input type="number" id="signalSpeedSec" value="1" min="0.1" step="0.1" />
       <label for="charTypeSelect">出題文字種別</label>
       <select id="charTypeSelect">
         <option value="all">すべて（数字＋ひらがな）</option>
@@ -143,7 +145,6 @@
   </div>
 
   <script>
-    // ここから既存のJS
     const flagPoses = {
       "あ": [9, 3], "い": [3, 2], "う": [6, 9], "え": [1, 19, 1], "お": [1, 2, 3],
       "か": [8, 3], "き": [6, 2], "く": [110, 111], "け": [7, 3], "こ": [8, 1],
@@ -175,15 +176,24 @@
           for (let pose of flagPoses[ch]) {
             frames.push(`poses/${pose}.png`);
           }
+          // 1文字ごとに間隔として20.pngを挟む
+          frames.push("poses/20.png");
         }
       }
 
       let i = 0;
+      const speedValue = parseFloat(document.getElementById('signalSpeedSec').value);
+      const baseSpeed = 800; // 基準800ms
+      const speed = baseSpeed / speedValue; // 値が大きいほど速い（間隔は短い）
+
       function showNext() {
-        if (i >= frames.length) return;
+        if (i >= frames.length) {
+          img.src = "poses/20.png";
+          return;
+        }
         img.src = frames[i];
         i++;
-        setTimeout(showNext, 800); // 1ポーズ0.8秒表示
+        setTimeout(showNext, speed);
       }
 
       showNext();
@@ -207,21 +217,34 @@
       currentQuestions = [];
 
       let i = 0;
+      const img = document.getElementById('flagImage');
+
       function next() {
-        if (i >= count) return;
-        let q = '';
-        for (let j = 0; j < length; j++) {
-          q += chars[Math.floor(Math.random() * chars.length)];
+        if (i >= count) {
+          img.src = "poses/20.png";
+          return;
         }
-        currentQuestions.push(q);
-        const inputId = `answerInput${i}`;
-        panel.innerHTML += `<div><strong>Q${i + 1}:</strong><br><input type="text" id="${inputId}" placeholder="ここに解答"></div>`;
-        currentAnswer = q;
-        playSignal(q);
-        total++;
-        document.getElementById('totalCount').textContent = total;
-        i++;
-        if (i < count) setTimeout(next, interval);
+
+        img.src = "poses/20.png";
+
+        setTimeout(() => {
+          let q = '';
+          for (let j = 0; j < length; j++) {
+            q += chars[Math.floor(Math.random() * chars.length)];
+          }
+          currentQuestions.push(q);
+          const inputId = `answerInput${i}`;
+          panel.innerHTML += `<div><strong>Q${i + 1}:</strong><br><input type="text" id="${inputId}" placeholder="ここに解答"></div>`;
+
+          currentAnswer = q;
+          playSignal(q);
+
+          total++;
+          document.getElementById('totalCount').textContent = total;
+
+          i++;
+          setTimeout(next, interval);
+        }, 1000);
       }
 
       next();
@@ -251,7 +274,7 @@
       document.getElementById('accuracy').textContent = ((correct / total) * 100).toFixed(1);
     }
 
-    // ここからモーダル制御
+    // モーダル制御
     document.getElementById('openSettingsBtn').addEventListener('click', () => {
       document.getElementById('settingsModal').style.display = 'block';
     });
@@ -260,7 +283,6 @@
       document.getElementById('settingsModal').style.display = 'none';
     });
 
-    // モーダル背景クリックで閉じる（任意）
     document.getElementById('settingsModal').addEventListener('click', (e) => {
       if (e.target === document.getElementById('settingsModal')) {
         document.getElementById('settingsModal').style.display = 'none';
@@ -269,4 +291,3 @@
   </script>
 </body>
 </html>
-
