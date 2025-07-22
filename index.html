@@ -11,16 +11,16 @@
       color: #333;
       max-width: 600px;
       margin: auto;
-      padding: 1em;
+      padding: 0.5em; /* 余白少し縮小 */
       position: relative;
     }
     h1 {
       text-align: center;
       font-size: 1.5em;
-      margin-bottom: 1em;
+      margin: 0.5em 0;
     }
     .panel {
-      margin-bottom: 1.5em;
+      margin-bottom: 1.2em; /* 少し間隔狭め */
     }
     label {
       display: block;
@@ -35,14 +35,16 @@
       box-sizing: border-box;
     }
     #flagContainer {
-      width: 200px;
-      height: 200px;
-      margin: 0 auto 1em;
+      width: 300px;
+      height: 240px; /* 高さを少し縮小 */
+      margin: 0.2em auto; /* 上下の余白を小さく */
+      padding: 0;
     }
     #flagImage {
       width: 100%;
       height: 100%;
       object-fit: contain;
+      display: block;
     }
     #history {
       list-style: none;
@@ -55,7 +57,6 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    /* 右上に設定ボタン固定配置 */
     #openSettingsBtn {
       position: fixed;
       top: 10px;
@@ -63,7 +64,6 @@
       width: 90px;
       z-index: 1001;
     }
-    /* モーダル背景 */
     #settingsModal {
       display: none;
       position: fixed;
@@ -73,7 +73,6 @@
       background-color: rgba(0,0,0,0.5);
       overflow: auto;
     }
-    /* モーダルコンテンツ */
     #settingsContent {
       background-color: #fff;
       margin: 5% auto;
@@ -176,15 +175,14 @@
           for (let pose of flagPoses[ch]) {
             frames.push(`poses/${pose}.png`);
           }
-          // 1文字ごとに間隔として20.pngを挟む
           frames.push("poses/20.png");
         }
       }
 
       let i = 0;
       const speedValue = parseFloat(document.getElementById('signalSpeedSec').value);
-      const baseSpeed = 800; // 基準800ms
-      const speed = baseSpeed / speedValue; // 値が大きいほど速い（間隔は短い）
+      const baseSpeed = 800;
+      const speed = baseSpeed / speedValue;
 
       function showNext() {
         if (i >= frames.length) {
@@ -274,7 +272,6 @@
       document.getElementById('accuracy').textContent = ((correct / total) * 100).toFixed(1);
     }
 
-    // モーダル制御
     document.getElementById('openSettingsBtn').addEventListener('click', () => {
       document.getElementById('settingsModal').style.display = 'block';
     });
