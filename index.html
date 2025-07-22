@@ -2,39 +2,149 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>手旗信号練習アプリ（基本文字のみ）</title>
+  <title>手旗信号練習アプリ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    body { font-family: sans-serif; text-align: center; background: #f9f9f9; }
-    img { width: 200px; height: auto; margin: 1em auto; display: block; }
-    input, button { font-size: 1.2em; margin: 0.5em; }
+    body {
+      font-family: sans-serif;
+      background: #f9f9f9;
+      color: #333;
+      max-width: 600px;
+      margin: auto;
+      padding: 1em;
+      position: relative;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.5em;
+      margin-bottom: 1em;
+    }
+    .panel {
+      margin-bottom: 1.5em;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 0.5em;
+    }
+    input, select, button {
+      width: 100%;
+      font-size: 1em;
+      padding: 0.5em;
+      margin-bottom: 0.5em;
+      box-sizing: border-box;
+    }
+    #flagContainer {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 1em;
+    }
+    #flagImage {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    #history {
+      list-style: none;
+      padding-left: 0;
+    }
+    button {
+      background-color: #444;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    /* 右上に設定ボタン固定配置 */
+    #openSettingsBtn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 90px;
+      z-index: 1001;
+    }
+    /* モーダル背景 */
+    #settingsModal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      overflow: auto;
+    }
+    /* モーダルコンテンツ */
+    #settingsContent {
+      background-color: #fff;
+      margin: 5% auto;
+      padding: 1em 2em 2em 2em;
+      border-radius: 8px;
+      max-width: 320px;
+      box-shadow: 0 0 10px #0003;
+    }
+    #closeSettingsBtn {
+      background-color: #777;
+      margin-top: 1em;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
   <h1>手旗信号練習アプリ</h1>
 
-  <div>
-    <label>出題文字:</label>
-    <span id="questionChar">？</span>
+  <button id="openSettingsBtn">設定</button>
+
+  <div id="flagContainer">
+    <img id="flagImage" src="" alt="手旗信号" />
   </div>
 
-  <div>
-    <img id="tehata-img" src="" alt="手旗信号画像" />
+  <div class="panel">
+    <label>文字列（ひらがな・数字）</label>
+    <input type="text" id="inputText" value="あ1" />
+    <button onclick="playSignal()">再生</button>
+    <button onclick="generateRandom()">ランダム出題</button>
+    <button onclick="showAnswer()">解答表示</button>
   </div>
 
-  <div>
-    <label>回答:</label>
-    <input type="text" id="userAnswer" maxlength="1" />
-    <button onclick="checkAnswer()">送信</button>
+  <div class="panel">
+    <label>複数問題の解答欄</label>
+    <div id="multiAnswerPanel"></div>
+    <button onclick="checkMultiAnswers()">まとめて採点</button>
   </div>
 
-  <div id="result"></div>
+  <div id="settingsModal">
+    <div id="settingsContent">
+      <h2>設定</h2>
+      <label for="questionCount">出題数</label>
+      <input type="number" id="questionCount" value="1" min="1" max="20" />
+      <label for="lengthPerQuestion">1問あたりの文字数</label>
+      <input type="number" id="lengthPerQuestion" value="1" min="1" max="10" />
+      <label for="intervalSec">問題間隔（秒）</label>
+      <input type="number" id="intervalSec" value="5" min="1" />
+      <label for="charTypeSelect">出題文字種別</label>
+      <select id="charTypeSelect">
+        <option value="all">すべて（数字＋ひらがな）</option>
+        <option value="numbers">数字のみ</option>
+        <option value="hiragana">ひらがなのみ</option>
+      </select>
+      <button id="closeSettingsBtn">閉じる</button>
+    </div>
+  </div>
 
-  <button onclick="startQuestion()">次の問題</button>
+  <div class="panel">
+    <strong>正解：</strong><span id="answer"></span>
+  </div>
+
+  <div class="panel">
+    <strong>出題履歴：</strong>
+    <ul id="history"></ul>
+    <strong>正解数：</strong><span id="correctCount">0</span> / <span id="totalCount">0</span>
+    (<span id="accuracy">0</span>%)
+  </div>
 
   <script>
-    const motionMap = {
-      // 五十音（清音のみ）
+    // ここから既存のJS
+    const flagPoses = {
       "あ": [9, 3], "い": [3, 2], "う": [6, 9], "え": [1, 19, 1], "お": [1, 2, 3],
       "か": [8, 3], "き": [6, 2], "く": [110, 111], "け": [7, 3], "こ": [8, 1],
       "さ": [1, 12], "し": [5, 7], "す": [1, 2, 5], "せ": [9, 7], "そ": [5, 3],
@@ -45,57 +155,118 @@
       "や": [8, 4], "ゆ": [9, 1], "よ": [8, 6],
       "ら": [5, 9], "り": [12], "る": [3, 7], "れ": [7], "ろ": [7, 8],
       "わ": [2, 9], "を": [1, 9], "ん": [5, 1],
-      
-      // 数字
       "0": [], "1": [1], "2": [2], "3": [3], "4": [4],
-      "5": [5], "6": [6], "7": [7], "8": [8], "9": [9],
-      
-      // 記号（清音系のみに対応させたい記号があれば）
-      "ー": [], "。": [], "、": [], "・": [],
-      "！": [], "!": [], "？": [], "?": [],
-      "「": [], "」": [], "（": [], "）": [],
-      "（始）": [], "（終）": []
+      "5": [5], "6": [6], "7": [7], "8": [8], "9": [9]
     };
 
-    const chars = Object.keys(motionMap);
-    let currentChar = "";
+    let currentAnswer = '';
+    let currentQuestions = [];
+    let correct = 0;
+    let total = 0;
 
-    function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-    }
+    function playSignal(text = null) {
+      if (text === null) text = document.getElementById('inputText').value;
+      currentAnswer = text;
+      const img = document.getElementById('flagImage');
+      let frames = [];
 
-    async function showTehataMotion(char, speed = 500) {
-      const imgIds = motionMap[char];
-      for (let i = 0; i < imgIds.length; i++) {
-        const num = String(imgIds[i]).padStart(3, '0');
-        document.getElementById("tehata-img").src = `img/tehata/${num}.png`;
-        await sleep(speed);
+      for (let ch of text) {
+        if (flagPoses[ch]) {
+          for (let pose of flagPoses[ch]) {
+            frames.push(`poses/${pose}.png`);
+          }
+        }
       }
-    }
 
-    function startQuestion() {
-      document.getElementById("result").textContent = "";
-      currentChar = chars[Math.floor(Math.random() * chars.length)];
-      document.getElementById("questionChar").textContent = "？";
-      document.getElementById("userAnswer").value = "";
-      showTehataMotion(currentChar);
-    }
-
-    function checkAnswer() {
-      const userInput = document.getElementById("userAnswer").value.trim();
-      const resultEl = document.getElementById("result");
-      if (userInput === currentChar) {
-        resultEl.textContent = "⭕ 正解！";
-        resultEl.style.color = "green";
-        document.getElementById("questionChar").textContent = currentChar;
-      } else {
-        resultEl.textContent = `❌ 不正解（正解: ${currentChar}）`;
-        resultEl.style.color = "red";
-        document.getElementById("questionChar").textContent = currentChar;
+      let i = 0;
+      function showNext() {
+        if (i >= frames.length) return;
+        img.src = frames[i];
+        i++;
+        setTimeout(showNext, 800); // 1ポーズ0.8秒表示
       }
+
+      showNext();
     }
 
-    window.onload = startQuestion;
+    function generateRandom() {
+      const charType = document.getElementById('charTypeSelect').value;
+      let chars = Object.keys(flagPoses).filter(k => flagPoses[k].length > 0);
+      if (charType === 'numbers') {
+        chars = chars.filter(c => c >= '0' && c <= '9');
+      } else if (charType === 'hiragana') {
+        chars = chars.filter(c => c.match(/^[ぁ-ん]$/));
+      }
+
+      const count = parseInt(document.getElementById('questionCount').value);
+      const length = parseInt(document.getElementById('lengthPerQuestion').value);
+      const interval = parseInt(document.getElementById('intervalSec').value) * 1000;
+
+      const panel = document.getElementById('multiAnswerPanel');
+      panel.innerHTML = '';
+      currentQuestions = [];
+
+      let i = 0;
+      function next() {
+        if (i >= count) return;
+        let q = '';
+        for (let j = 0; j < length; j++) {
+          q += chars[Math.floor(Math.random() * chars.length)];
+        }
+        currentQuestions.push(q);
+        const inputId = `answerInput${i}`;
+        panel.innerHTML += `<div><strong>Q${i + 1}:</strong><br><input type="text" id="${inputId}" placeholder="ここに解答"></div>`;
+        currentAnswer = q;
+        playSignal(q);
+        total++;
+        document.getElementById('totalCount').textContent = total;
+        i++;
+        if (i < count) setTimeout(next, interval);
+      }
+
+      next();
+    }
+
+    function showAnswer() {
+      document.getElementById('answer').textContent = currentAnswer;
+    }
+
+    function checkMultiAnswers() {
+      const history = document.getElementById('history');
+      let newEntries = [];
+      for (let i = 0; i < currentQuestions.length; i++) {
+        const expected = currentQuestions[i];
+        const userInput = document.getElementById(`answerInput${i}`).value.trim();
+        const correctMark = userInput === expected ? '⭕' : '❌';
+        const entry = document.createElement('li');
+        entry.textContent = `Q${i + 1}: ${expected} | A: ${userInput} | ${correctMark}`;
+        newEntries.push(entry);
+        if (userInput === expected) correct++;
+      }
+
+      newEntries.reverse().forEach(e => history.insertBefore(e, history.firstChild));
+      while (history.children.length > 20) history.removeChild(history.lastChild);
+
+      document.getElementById('correctCount').textContent = correct;
+      document.getElementById('accuracy').textContent = ((correct / total) * 100).toFixed(1);
+    }
+
+    // ここからモーダル制御
+    document.getElementById('openSettingsBtn').addEventListener('click', () => {
+      document.getElementById('settingsModal').style.display = 'block';
+    });
+
+    document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+      document.getElementById('settingsModal').style.display = 'none';
+    });
+
+    // モーダル背景クリックで閉じる（任意）
+    document.getElementById('settingsModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('settingsModal')) {
+        document.getElementById('settingsModal').style.display = 'none';
+      }
+    });
   </script>
 </body>
 </html>
+
